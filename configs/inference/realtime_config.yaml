@@ -1,0 +1,104 @@
+# MuseTalk Realtime API Configuration
+
+# Server settings
+server:
+  host: "localhost"
+  port: 8900
+  max_connections: 10
+
+# OpenAI Realtime API settings
+openai:
+  model: "gpt-4o-realtime-preview-2024-10-01"
+  voice_options: ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
+  default_voice: "alloy"
+  temperature: 1.0
+  max_response_tokens: 4096
+
+# Audio processing settings (optimized for 2-second blocks)
+audio:
+  sample_rate: 24000
+  format: "pcm16"
+  chunk_size: 8192
+  padding_left: 2
+  padding_right: 2
+  target_duration: 2.0  # Standardized 2-second audio blocks
+  min_duration: 0.5     # Minimum audio duration in seconds
+  merge_threshold: 2.0  # Target duration for audio blocks
+  buffer_size: 20       # Audio buffer size for memory management
+
+# Video processing settings (optimized for real-time)
+video:
+  fps: 25
+  batch_size: 8              # Increased for better GPU utilization
+  extra_margin: 10
+  parsing_mode: "jaw"
+  left_cheek_width: 90
+  right_cheek_width: 90
+  output_format: "mp4"
+  fragmented_mp4: true
+  generation_speed_multiplier: 1.1  # Generate slightly faster than playback
+  encoding_preset: "ultrafast"      # Fastest encoding for real-time
+  encoding_tune: "zerolatency"      # Low latency encoding
+
+# Character settings
+characters:
+  girl2:
+    video_path: "girl2.mp4"
+    bbox_shift: -7
+    description: "A friendly female assistant"
+    greeting: "Hello! I'm here to help you today."
+  
+  man1:
+    video_path: "man1.mp4"
+    bbox_shift: -5
+    description: "A professional male assistant"
+    greeting: "Good day! How may I assist you?"
+  
+  woman1:
+    video_path: "woman1.mp4"
+    bbox_shift: -6
+    description: "An experienced female consultant"
+    greeting: "Welcome! I'm ready to help with your questions."
+
+# Model paths
+models:
+  musetalk:
+    version: "v15"
+    unet_path: "./models/musetalkV15/unet.pth"
+    config_path: "./models/musetalkV15/musetalk.json"
+  
+  vae:
+    type: "sd-vae"
+    path: "./models/sd-vae"
+  
+  whisper:
+    path: "./models/whisper"
+  
+  face_parsing:
+    path: "./models/face-parse-bisent"
+
+# Directories
+directories:
+  results: "./results/realtime"
+  temp: "./temp"
+  video_data: "./data/video"
+  audio_cache: "./cache/audio"
+
+# Performance settings (optimized for real-time processing)
+performance:
+  use_half_precision: true
+  gpu_id: 0
+  max_video_buffer: 15          # Increased buffer for ahead-of-time generation
+  cleanup_interval: 20          # More frequent cleanup
+  parallel_workers: 4           # Thread pool workers for parallel processing
+  memory_optimization: true     # Enable memory-based processing
+  gpu_memory_fraction: 0.8      # Reserve GPU memory fraction
+  cuda_streams: true            # Use CUDA streams for parallel processing
+  video_send_interval: 1.8      # Send videos slightly faster than audio blocks
+
+# Logging
+logging:
+  level: "INFO"
+  file: "./logs/realtime.log"
+  max_size: "10MB"
+  backup_count: 5

@@ -1,0 +1,38 @@
+# Unified requirements for MuseTalk with WebRTC and WebSocket support
+# Core MuseTalk dependencies
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+transformers>=4.30.0
+omegaconf>=2.3.0
+opencv-python>=4.8.0
+imageio>=2.31.1
+imageio-ffmpeg>=0.4.8
+tqdm>=4.65.0
+numpy>=1.24.0
+scipy>=1.11.0
+
+# Audio processing
+librosa>=0.10.1
+soundfile>=0.12.1
+
+# WebRTC dependencies (for advanced streaming)
+aiortc>=1.6.0
+av>=10.0.0
+cffi>=1.15.0
+cryptography>=41.0.0
+pyee>=9.0.0
+
+# WebSocket and HTTP
+aiohttp>=3.8.5
+websockets>=11.0.3
+
+# Async support
+asyncio-mqtt>=0.13.0
+uvloop>=0.17.0; sys_platform != "win32"
+
+# Performance optimization
+numba>=0.57.0
+
+# Environment management
+python-dotenv>=1.0.0

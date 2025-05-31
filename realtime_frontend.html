@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MuseTalk Realtime API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        label {
+            font-weight: bold;
+            color: #333;
+        }
+        input, select, button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .video-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .video-section {
+            flex: 1;
+            text-align: center;
+        }
+        video {
+            width: 100%;
+            max-width: 400px;
+            height: 300px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background-color: #000;
+        }
+        .chat-container {
+            height: 300px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: #f8f9fa;
+            margin-bottom: 20px;
+        }
+        .character-chat-item {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+        .item-user {
+            background-color: #007bff;
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+        .item-character {
+            background-color: #e9ecef;
+            color: #333;
+            margin-right: auto;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.connecting {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .markdown-content {
+            line-height: 1.5;
+        }
+        .markdown-content code {
+            background-color: #f1f3f4;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .error-tip {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>MuseTalk + OpenAI Realtime API</h1>
+            <p>Real-time Digital Human with Voice Interaction</p>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="license">License:</label>
+                <input type="text" id="license" value="license001" placeholder="Enter license">
+            </div>
+            <div class="control-group">
+                <label for="characterName">Character:</label>
+                <select id="characterName">
+                    <option value="girl2">Girl 2</option>
+                    <option value="man1">Man 1</option>
+                    <option value="woman1">Woman 1</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="voice">Voice:</label>
+                <select id="voice">
+                    <option value="alloy">Alloy</option>
+                    <option value="echo">Echo</option>
+                    <option value="fable">Fable</option>
+                    <option value="onyx">Onyx</option>
+                    <option value="nova">Nova</option>
+                    <option value="shimmer">Shimmer</option>
+                </select>
+            </div>
+            <button id="connectBtn">Connect</button>
+            <button id="disconnectBtn" disabled>Disconnect</button>
+        </div>
+
+        <div id="status" class="status disconnected">Disconnected</div>
+
+        <div class="video-container">
+            <div class="video-section">
+                <h3>Digital Human</h3>
+                <video id="videoElement" autoplay muted></video>
+            </div>
+        </div>
+
+        <div class="ah-character-chat chat-container" id="chatContainer">
+            <!-- Chat messages will appear here -->
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        const websocketUrl = "ws://localhost:8900/api/realtime-api";
+        let socket;
+        let audioContext;
+        let audioStream;
+        let audioProcessor;
+        let mediaSource;
+        let sourceBuffer;
+        let videoElement;
+        let isStreaming = false;
+        let playVideo = false;
+        let isPlaying = false;
+        let audioQueue = [];
+        let currentChat = [];
+        let markdownBuffer = new Map();
+        let responseSpans = new Map();
+
+        // Character configurations
+        const activeCharacter = {
+            characterDefinition: "You are a helpful AI assistant with a friendly personality.",
+            greeting: "Hello! How can I help you today?",
+            voice: "alloy",
+            realtimeHistory: []
+        };
+
+        // DOM elements
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const statusDiv = document.getElementById('status');
+        const chatContainer = document.getElementById('chatContainer');
+        const licenseInput = document.getElementById('license');
+        const characterSelect = document.getElementById('characterName');
+        const voiceSelect = document.getElementById('voice');
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            videoElement = document.getElementById('videoElement');
+            setupMediaSource();
+            
+            connectBtn.addEventListener('click', startWebSocket);
+            disconnectBtn.addEventListener('click', stopConnection);
+            
+            // Update character voice when selection changes
+            voiceSelect.addEventListener('change', function() {
+                activeCharacter.voice = this.value;
+            });
+        });
+
+        // Setup MediaSource for video streaming
+        function setupMediaSource() {
+            if ('MediaSource' in window) {
+                mediaSource = new MediaSource();
+                mediaSource.addEventListener('sourceopen', function() {
+                    try {
+                        sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.42E01E,mp4a.40.2"');
+                        sourceBuffer.addEventListener('error', function(e) {
+                            console.error('SourceBuffer error:', e);
+                            resetSourceBuffer();
+                        });
+                    } catch (e) {
+                        console.error('Error creating SourceBuffer:', e);
+                    }
+                });
+            }
+        }
+
+        // Reset SourceBuffer on error
+        function resetSourceBuffer() {
+            try {
+                if (mediaSource && mediaSource.readyState === 'open') {
+                    mediaSource.endOfStream();
+                }
+                setupMediaSource();
+            } catch (e) {
+                console.error('Error resetting SourceBuffer:', e);
+            }
+        }
+
+        // Start WebSocket connection
+        async function startWebSocket() {
+            try {
+                const license = licenseInput.value.trim();
+                const characterName = characterSelect.value;
+                
+                if (!license) {
+                    showErrorTip("Please enter a license");
+                    return;
+                }
+
+                updateStatus("Connecting...", "connecting");
+                connectBtn.disabled = true;
+
+                const websocketUrlWithParams = 
+                    `${websocketUrl}?license=${encodeURIComponent(license)}&characterName=${encodeURIComponent(characterName)}`;
+
+                socket = new WebSocket(websocketUrlWithParams);
+                socket.binaryType = 'arraybuffer';
+
+                socket.onmessage = (event) => {
+                    if (typeof event.data === 'string') {
+                        try {
+                            const data = JSON.parse(event.data);
+                            handleReceivedMessage(data);
+                        } catch (e) {
+                            console.error("Failed to parse JSON message:", e);
+                        }
+                    } else if (event.data instanceof ArrayBuffer) {
+                        handleReceivedBinaryMessage(event.data);
+                    } else {
+                        console.warn("Unknown type of WebSocket message");
+                    }
+                };
+
+                socket.onopen = function() {
+                    console.log("WebSocket is connected");
+                    updateStatus("Connected", "connected");
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = false;
+                };
+
+                socket.onerror = function(error) {
+                    console.error("WebSocket error: ", error);
+                    updateStatus("Connection Error", "disconnected");
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                };
+
+                socket.onclose = async function(event) {
+                    if (event.reason === 'Insufficient points') {
+                        showErrorTip("You need more points to complete this action.");
+                    }
+                    console.log("WebSocket is closed", event.code, event.reason);
+                    updateStatus("Disconnected", "disconnected");
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                    stopRecording();
+                };
+
+            } catch (error) {
+                console.error("Error starting WebSocket:", error);
+                updateStatus("Connection Failed", "disconnected");
+                connectBtn.disabled = false;
+            }
+        }
+
+        // Handle different WebSocket messages based on event type
+        async function handleReceivedMessage(data) {
+            switch (data.type) {
+                case "session.created":
+                    console.log("Session created, sending session update.");
+                    await sendSessionUpdate();
+                    break;
+
+                case "session.updated":
+                    console.log("Session updated. Ready to receive audio.");
+                    startRecording();
+                    break;
+
+                case "input_audio_buffer.speech_started":
+                    console.log("Speech started detected by server.");
+                    stopCurrentAudioPlayback();
+                    audioQueue = [];
+                    isPlaying = false;
+                    playVideo = false;
+                    break;
+
+                case "input_audio_buffer.speech_stopped":
+                    console.log("Speech stopped detected by server.");
+                    break;
+
+                case "conversation.item.input_audio_transcription.completed":
+                    console.log("Received transcription: " + data.transcript);
+                    displayUserMessage(data.transcript);
+                    currentChat.push({ role: "user", content: data.transcript });
+                    break;
+
+                case "response.audio_transcript.delta":
+                    playVideo = true;
+                    handleTranscriptDelta(data);
+                    break;
+
+                case "response.audio.delta":
+                    // Audio delta processing would go here if needed
+                    break;
+
+                case "response.audio_transcript.done":
+                    console.log("Received transcription: " + data.transcript);
+                    currentChat.push({ role: "assistant", content: data.transcript });
+                    break;
+
+                case "response.audio.done":
+                    console.log("Audio response complete.");
+                    isPlaying = false;
+                    playVideo = false;
+                    break;
+
+                case "response.function_call_arguments.done":
+                    console.log("Function call data:", data);
+                    handleFunctionCall(data);
+                    break;
+
+                default:
+                    console.warn("Unhandled event type: " + data.type);
+            }
+        }
+
+        // Handle transcript delta for streaming text
+        function handleTranscriptDelta(data) {
+            const transcript = data.delta;
+            const responseId = data.response_id;
+
+            if (!markdownBuffer.has(responseId)) {
+                markdownBuffer.set(responseId, "");
+            }
+
+            const existingBuffer = markdownBuffer.get(responseId);
+            markdownBuffer.set(responseId, existingBuffer + transcript);
+
+            let aiMessageSpan = responseSpans.get(responseId);
+            if (!aiMessageSpan) {
+                const aiMessageContainer = document.createElement('div');
+                aiMessageContainer.classList.add('character-chat-item', 'item-character');
+
+                aiMessageSpan = document.createElement('span');
+                aiMessageSpan.classList.add('markdown-content');
+                aiMessageContainer.appendChild(aiMessageSpan);
+
+                chatContainer.appendChild(aiMessageContainer);
+                responseSpans.set(responseId, aiMessageSpan);
+            }
+
+            const fullContent = markdownBuffer.get(responseId);
+            const parsedContent = marked.parse(fullContent);
+            aiMessageSpan.innerHTML = parsedContent;
+
+            Prism.highlightAllUnder(aiMessageSpan);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Display user message in chat
+        function displayUserMessage(message) {
+            const userMessageContainer = document.createElement('div');
+            userMessageContainer.classList.add('character-chat-item', 'item-user');
+            
+            const userMessage = document.createElement('span');
+            userMessage.textContent = message;
+            userMessageContainer.appendChild(userMessage);
+
+            chatContainer.appendChild(userMessageContainer);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Session initialization configuration
+        async function sendSessionUpdate() {
+            const conversationHistory = currentChat || [];
+            const userLanguage = "English"; // Could be made configurable
+
+            const sessionConfig = {
+                type: "session.update",
+                session: {
+                    instructions: activeCharacter.characterDefinition + ".Please respond in " +
+                        userLanguage + ". Please greet the user with a friendly welcome message like:" +
+                        activeCharacter.greeting + ". Please use function call results to generate responses when " +
+                        "the user's request requires a task beyond the current capabilities of yours. Now you can " +
+                        "deal with anything. please use function call especially when the output is related to different " +
+                        "modalities such as image, audio, and video.",
+                    turn_detection: {
+                        type: "server_vad",
+                        threshold: 0.5,
+                        prefix_padding_ms: 300,
+                        silence_duration_ms: 500
+                    },
+                    voice: activeCharacter.voice,
+                    temperature: 1,
+                    max_response_output_tokens: 4096,
+                    modalities: ["text", "audio"],
+                    input_audio_format: "pcm16",
+                    output_audio_format: "pcm16",
+                    input_audio_transcription: {
+                        model: "whisper-1"
+                    },
+                    tools: [
+                        {
+                            type: "function",
+                            name: "function_call_judge",
+                            description: "Determines if the user's request requires a task beyond the current capabilities of yours. If you can't deal with, call the function to expand your capabilities to satisfy the user's needs.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    userInput: {
+                                        type: "string",
+                                        description: "The user's input query or request."
+                                    }
+                                },
+                                required: ["userInput"]
+                            }
+                        }
+                    ]
+                }
+            };
+
+            try {
+                console.log("Sending session update:", JSON.stringify(sessionConfig));
+                socket.send(JSON.stringify(sessionConfig));
+            } catch (e) {
+                console.error("Error sending session update:", e);
+            }
+
+            // Send conversation history
+            conversationHistory.forEach((msg) => {
+                const messageConfig = {
+                    type: "conversation.item.create",
+                    item: {
+                        type: "message",
+                        role: msg.role,
+                        content: [
+                            {
+                                type: "input_text",
+                                text: msg.content
+                            }
+                        ]
+                    }
+                };
+
+                try {
+                    console.log("Sending message:", JSON.stringify(messageConfig));
+                    socket.send(JSON.stringify(messageConfig));
+                } catch (e) {
+                    console.error("Error sending message:", e);
+                }
+            });
+        }
+
+        // Start recording audio from microphone
+        function startRecording() {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+                    audioStream = stream;
+                    const source = audioContext.createMediaStreamSource(stream);
+                    audioProcessor = audioContext.createScriptProcessor(8192, 1, 1);
+
+                    audioProcessor.onaudioprocess = (event) => {
+                        if (socket && socket.readyState === WebSocket.OPEN) {
+                            const inputBuffer = event.inputBuffer.getChannelData(0);
+                            const pcmData = floatTo16BitPCM(inputBuffer);
+                            const base64PCM = base64EncodeAudio(new Uint8Array(pcmData));
+
+                            const chunkSize = 4096;
+                            for (let i = 0; i < base64PCM.length; i += chunkSize) {
+                                const chunk = base64PCM.slice(i, i + chunkSize);
+                                socket.send(JSON.stringify({ 
+                                    type: "input_audio_buffer.append", 
+                                    audio: chunk 
+                                }));
+                            }
+                        }
+                    };
+
+                    source.connect(audioProcessor);
+                    audioProcessor.connect(audioContext.destination);
+                    console.log("Recording started");
+                })
+                .catch(error => {
+                    console.error("Unable to access microphone: ", error);
+                    showErrorTip("Unable to access microphone. Please check permissions.");
+                });
+        }
+
+        // Convert 32-bit float audio to 16-bit PCM
+        function floatTo16BitPCM(float32Array) {
+            const buffer = new ArrayBuffer(float32Array.length * 2);
+            const view = new DataView(buffer);
+            let offset = 0;
+            for (let i = 0; i < float32Array.length; i++, offset += 2) {
+                let s = Math.max(-1, Math.min(1, float32Array[i]));
+                view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+            }
+            return buffer;
+        }
+
+        // Encode audio data to base64
+        function base64EncodeAudio(uint8Array) {
+            let binary = '';
+            const chunkSize = 0x8000;
+            for (let i = 0; i < uint8Array.length; i += chunkSize) {
+                const chunk = uint8Array.subarray(i, i + chunkSize);
+                binary += String.fromCharCode.apply(null, chunk);
+            }
+            return btoa(binary);
+        }
+
+        // Handle received binary video data
+        function handleReceivedBinaryMessage(arrayBuffer) {
+            try {
+                if (sourceBuffer && !sourceBuffer.updating) {
+                    if (!isStreaming) {
+                        console.log("Starting streaming playback...");
+                        isStreaming = true;
+                        videoElement.src = URL.createObjectURL(mediaSource);
+                        videoElement.muted = false;
+                        console.log("Audio restored...");
+                    }
+
+                    // Remove old buffered data if needed
+                    if (sourceBuffer.buffered.length > 0) {
+                        let startTime = sourceBuffer.buffered.start(0);
+                        let endTime = sourceBuffer.buffered.end(0);
+                        if (endTime - startTime > 10) {
+                            console.log("Removing old buffered data...");
+                            sourceBuffer.remove(0, startTime);
+                        }
+                    }
+
+                    console.log("Received fMP4 data, adding to SourceBuffer...");
+                    sourceBuffer.appendBuffer(arrayBuffer);
+
+                    sourceBuffer.addEventListener('updateend', () => {
+                        if (videoElement.paused) {
+                            videoElement.play();
+                        }
+                        console.log("Update complete, video continues playing...");
+                    });
+                } else {
+                    console.warn("SourceBuffer is updating, waiting to send data");
+                }
+            } catch (e) {
+                console.error("Error appending data to SourceBuffer:", e);
+                resetSourceBuffer();
+            }
+        }
+
+        // Stop current audio playback
+        function stopCurrentAudioPlayback() {
+            // Implementation for stopping audio playback
+            console.log("Stopping current audio playback");
+        }
+
+        // Handle function calls
+        function handleFunctionCall(data) {
+            console.log("Handling function call:", data);
+            // Implementation for function call handling
+        }
+
+        // Stop recording and connection
+        function stopRecording() {
+            if (audioProcessor) {
+                audioProcessor.disconnect();
+            }
+            if (audioStream) {
+                audioStream.getTracks().forEach(track => track.stop());
+            }
+        }
+
+        function stopConnection() {
+            if (socket) {
+                socket.close();
+            }
+            stopRecording();
+        }
+
+        // Update status display
+        function updateStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        // Show error message
+        function showErrorTip(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-tip';
+            errorDiv.textContent = message;
+            document.querySelector('.container').insertBefore(errorDiv, document.querySelector('.controls'));
+            
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 5000);
+        }
+
+        // Storage functions (simplified for demo)
+        function setToChromeStorage(key, value) {
+            localStorage.setItem(key, value);
+        }
+
+        function getFromChromeStorage(key) {
+            return localStorage.getItem(key) || "English";
+        }
+    </script>
+</body>
+</html>
