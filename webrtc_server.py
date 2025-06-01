@@ -153,15 +153,25 @@ class WebRTCMuseTalkServer:
         # Memory optimization
         self.memory_lock = Lock()
         
-    async def handle_signaling(self, websocket, path):
+    async def handle_signaling(self, websocket, path=None):
         """Handle WebSocket signaling for WebRTC connection establishment"""
         try:
             # Parse query parameters
-            parsed_url = urlparse(path)
-            query_params = parse_qs(parsed_url.query)
+            license = None
+            character_name = None
             
-            license = query_params.get('license', [None])[0]
-            character_name = query_params.get('characterName', [None])[0]
+            if path:
+                parsed_url = urlparse(path)
+                query_params = parse_qs(parsed_url.query)
+                license = query_params.get('license', [None])[0]
+                character_name = query_params.get('characterName', [None])[0]
+            
+            # If parameters are not in path, try to get them from websocket.path
+            if (not license or not character_name) and hasattr(websocket, 'path'):
+                parsed_url = urlparse(websocket.path)
+                query_params = parse_qs(parsed_url.query)
+                license = license or query_params.get('license', [None])[0]
+                character_name = character_name or query_params.get('characterName', [None])[0]
             
             if not license or not character_name:
                 await websocket.close(code=1000, reason="Missing parameters")
@@ -408,7 +418,7 @@ class WebRTCMuseTalkServer:
         """Start the WebRTC signaling server"""
         logger.info(f"Starting WebRTC server on {self.host}:{self.port}")
         
-        async def handle_connection(websocket, path):
+        async def handle_connection(websocket, path=None):
             try:
                 await self.handle_signaling(websocket, path)
             finally:
